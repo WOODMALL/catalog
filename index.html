@@ -1,10 +1,26 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>WOODMALL Web Catalog</title>
-  </head>
-  <body>
-    <h1>안녕하세요! 우드몰 웹 카탈로그입니다.</h1>
-  </body>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>우드몰 카탈로그</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Product Catalog</h1>
+    <div id="filter-buttons">
+      <button class="filter-btn active" data-category="all">전체보기</button>
+      <button class="filter-btn" data-category="furniture">건축자재</button>
+      <button class="filter-btn" data-category="lighting">인테리어자재</button>
+      <button class="filter-btn" data-category="decor">부자재</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="product-grid" class="grid-container"></div>
+  </main>
+
+  <script src="data.js"></script>
+</body>
 </html>
