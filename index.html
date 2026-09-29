@@ -12,6 +12,7 @@
     body {
       background-color: #1a1a1a;
       height: 100vh;
+      height: 100dvh; /* 모바일 주소창 변화 대응 */
       width: 100vw;
       display: flex;
       flex-direction: column;
@@ -22,7 +23,7 @@
       position: relative;
     }
 
-    /* 플립북 래퍼 */
+    /* [PC 기본] 요청하신 67% 적당한 크기 유지 */
     .catalog-wrapper {
       display: flex;
       justify-content: center;
@@ -31,16 +32,18 @@
       height: 67vh;
       max-width: 88vw;
       margin-bottom: 30px;
-      touch-action: none; /* 브라우저 기본 제스처 충돌 방지 */
+      touch-action: none;
     }
 
-    /* 핀치 줌 & 이동을 담당하는 독립 뷰포트 레이어 */
+    /* 핀치 줌 전용 뷰포트 레이어 */
     #zoom-viewport {
       display: flex;
       justify-content: center;
       align-items: center;
       transform-origin: center center;
       will-change: transform;
+      width: 100%;
+      height: 100%;
     }
 
     #book {
@@ -93,22 +96,35 @@
       letter-spacing: 0.5px;
     }
 
-    /* 모바일 작은 화면 대응 */
-    @media (max-width: 600px) {
+    /* ========================================================
+     * [모바일 전용 최적화] 스마트폰 화면을 꽉 채우도록 설정
+     * ======================================================== */
+    @media (max-width: 768px) {
       .catalog-wrapper {
-        height: 62vh;
-        max-width: 95vw;
-        margin-bottom: 40px;
+        /* 하단 툴바(약 60px)만 남겨두고 화면 전체를 카탈로그로 꽉 채움 */
+        height: calc(100dvh - 70px);
+        height: calc(100vh - 70px);
+        width: 98vw;
+        max-width: 98vw;
+        margin-bottom: 55px;
+        padding: 0;
       }
+
+      #book {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+      }
+
       .toolbar {
-        bottom: 12px;
+        bottom: 10px;
         padding: 6px 12px;
         gap: 6px;
       }
+
       .btn {
         padding: 5px 8px;
-        font-size: 0.72rem;
+        font-size: 0.75rem;
       }
+
       .page-info {
         font-size: 0.78rem;
         min-width: 50px;
@@ -118,7 +134,7 @@
 </head>
 <body>
 
-  <!-- 핀치 줌 전용 뷰포트 레이어가 추가된 카탈로그 래퍼 -->
+  <!-- 카탈로그 래퍼 -->
   <div class="catalog-wrapper" id="wrapper">
     <div id="zoom-viewport">
       <div id="book"></div>
@@ -150,18 +166,23 @@
     const wrapper = document.getElementById('wrapper');
     const pageNumDisplay = document.getElementById('page-num');
 
+    // 모바일 여부 판단 (768px 이하)
+    const isMobile = window.innerWidth <= 768;
+
     // PageFlip 인스턴스 초기화
     const pageFlip = new St.PageFlip(book, {
-      width: 370,
-      height: 520,
+      // 모바일에서는 화면 폭에 맞춰 시원하게 커지도록 비율 및 최대치 확장
+      width: isMobile ? 420 : 370,
+      height: isMobile ? 594 : 520,
       size: 'stretch',
-      minWidth: 200,
-      maxWidth: 600,
-      minHeight: 280,
-      maxHeight: 800,
+      minWidth: isMobile ? 240 : 200,
+      maxWidth: isMobile ? 850 : 600,   // 모바일 화면 폭을 가득 채우도록 허용
+      minHeight: isMobile ? 340 : 280,
+      maxHeight: isMobile ? 1200 : 800, // 모바일 높이에 맞춰 큼직하게 렌더링
       maxShadowOpacity: 0.5,
       showCover: true,
-      mobileScrollSupport: false
+      mobileScrollSupport: false,
+      usePortrait: true                  // 스마트폰 세로 화면에서는 1장(단면) 꽉 찬 화면으로 표시
     });
 
     pageFlip.loadFromImages(imageList);
@@ -227,25 +248,22 @@
 
     document.getElementById('reset-zoom-btn').addEventListener('click', resetZoom);
 
-    // 두 손가락 사이의 유클리드 거리 계산
     function getDistance(t1, t2) {
       return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
     }
 
     wrapper.addEventListener('touchstart', (e) => {
-      // 1. 두 손가락 핀치 줌 시작
       if (e.touches.length === 2) {
         e.preventDefault();
         e.stopPropagation();
         startDistance = getDistance(e.touches[0], e.touches[1]);
         startScale = scale;
       } 
-      // 2. 한 손가락 터치 (더블 탭 감지 및 확대 상태 드래그)
       else if (e.touches.length === 1) {
         const now = Date.now();
         const touch = e.touches[0];
 
-        // 더블 탭 동작 (300ms 이내 연속 터치)
+        // 더블 탭: 2.2배 확대 토글
         if (now - lastTapTime < 300) {
           e.preventDefault();
           e.stopPropagation();
@@ -262,7 +280,6 @@
         }
         lastTapTime = now;
 
-        // 확대되어 있을 때는 책 넘김을 막고 자유 이동(Pan) 활성화
         if (scale > 1) {
           e.stopPropagation();
           isDragging = true;
@@ -273,24 +290,20 @@
     }, { passive: false });
 
     wrapper.addEventListener('touchmove', (e) => {
-      // 핀치 줌 동작 중
       if (e.touches.length === 2 && startDistance > 0) {
         e.preventDefault();
         e.stopPropagation();
         const currentDistance = getDistance(e.touches[0], e.touches[1]);
         const nextScale = startScale * (currentDistance / startDistance);
         
-        // 확대 비율을 1배 ~ 최대 3.5배로 제한
         scale = Math.min(Math.max(nextScale, 0.95), 3.5);
         applyTransform(false);
       } 
-      // 확대 상태에서 한 손가락으로 화면 이동(Pan) 중
       else if (e.touches.length === 1 && isDragging && scale > 1) {
         e.preventDefault();
         e.stopPropagation();
         const touch = e.touches[0];
         
-        // 이동 범위 계산 및 한계값 제한
         const maxRangeX = (window.innerWidth * (scale - 1)) / 1.5;
         const maxRangeY = (window.innerHeight * (scale - 1)) / 1.5;
 
@@ -306,7 +319,6 @@
       }
       if (e.touches.length === 0) {
         isDragging = false;
-        // 1배율 이하로 축소된 경우 원위치로 복귀
         if (scale <= 1.05) {
           resetZoom();
         }
