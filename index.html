@@ -8,73 +8,107 @@
   <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
       background-color: #1a1a1a;
-      min-height: 100vh;
+      height: 100vh;
+      width: 100vw;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
+      position: relative;
     }
 
-    /* 플립북이 화면 밖으로 넘치지 않도록 최대 높이/너비 강제 제한 */
+    /* 플립북 래퍼: 하단 툴바 공간(80px)을 제외하고 화면 전체를 최대한 활용 */
     .catalog-wrapper {
       display: flex;
       justify-content: center;
       align-items: center;
       width: 100%;
-      height: 80vh; /* 화면 높이의 80% 안에 쏙 들어가도록 설정 */
-      max-width: 95vw;
+      height: calc(100vh - 80px);
+      max-width: 96vw;
+      padding-top: 10px;
     }
 
     #book {
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
     }
 
-    /* 하단 조작 바 */
+    /* 하단 고정 컨트롤 툴바 */
     .toolbar {
-      margin-top: 15px;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       align-items: center;
       gap: 12px;
-      background: rgba(255, 255, 255, 0.12);
-      padding: 8px 16px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
+      background: rgba(30, 30, 30, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 18px;
+      border-radius: 30px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
+
     .btn {
       background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       color: #fff;
       padding: 6px 14px;
       font-size: 0.85rem;
-      border-radius: 14px;
+      border-radius: 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      white-space: nowrap;
     }
+
     .btn:hover {
       background: #fff;
       color: #111;
+      border-color: #fff;
     }
+
     .page-info {
       color: #eee;
       font-size: 0.85rem;
-      min-width: 70px;
+      min-width: 65px;
       text-align: center;
       font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    /* 모바일 작은 화면 대응 */
+    @media (max-width: 600px) {
+      .catalog-wrapper {
+        height: calc(100vh - 70px);
+        max-width: 100vw;
+      }
+      .toolbar {
+        bottom: 12px;
+        padding: 6px 14px;
+        gap: 8px;
+      }
+      .btn {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- 화면 크기에 맞추는 래퍼 컨테이너 -->
+  <!-- 카탈로그 뷰어 영역 -->
   <div class="catalog-wrapper">
     <div id="book"></div>
   </div>
 
-  <!-- 컨트롤 툴바 -->
+  <!-- 화면 최하단 고정 조작 바 -->
   <div class="toolbar">
     <button class="btn" id="prev-btn">이전</button>
     <span class="page-info" id="page-num">- / -</span>
@@ -83,10 +117,10 @@
   </div>
 
   <script>
-    // ⚙️ 실제 업로드한 전체 페이지 수를 입력하세요.
+    // ⚙️ [설정] 실제 업로드된 전체 페이지 수
     const totalPages = 16; 
 
-    // 이미지 경로 배열 자동 생성
+    // 이미지 파일 경로 배열 생성
     const imageList = [];
     for (let i = 1; i <= totalPages; i++) {
       const formattedNum = String(i).padStart(2, '0');
@@ -96,24 +130,24 @@
     const book = document.getElementById('book');
     const pageNumDisplay = document.getElementById('page-num');
 
-    // 일반 PC/노트북 화면 비율에 맞춘 PageFlip 인스턴스 생성
+    // 화면 비율에 맞추어 시원하게 커지도록 상한선(max) 확대 설정
     const pageFlip = new St.PageFlip(book, {
-      width: 480,          // 기본 페이지 너비 (A4 세로 비율)
-      height: 680,         // 기본 페이지 높이
-      size: 'stretch',
+      width: 550,          // 기준 너비 (A4 세로 비율)
+      height: 780,         // 기준 높이
+      size: 'stretch',     // 부모 영역 크기에 맞춰 유동적으로 리사이징
       minWidth: 260,
-      maxWidth: 550,       // 양면 기준 최대 1100px로 제한 (모니터 오버플로우 방지)
+      maxWidth: 900,       // 모니터 화면에 맞게 훨씬 크게 확대 허용 (단면 기준 최대 900px)
       minHeight: 380,
-      maxHeight: 780,      // 화면 세로(80vh) 안에서 조절
+      maxHeight: 1200,     // 세로 높이 최대 1200px까지 확대
       maxShadowOpacity: 0.5,
-      showCover: true,     // 첫/마지막 장 단면 표지 모드
+      showCover: true,     // 첫/마지막 페이지 단면 표지
       mobileScrollSupport: false
     });
 
-    // 캔버스 방식으로 이미지들을 직접 주입 (자동 스케일링/리사이징)
+    // 캔버스 방식으로 이미지 주입
     pageFlip.loadFromImages(imageList);
 
-    // 페이지 인디케이터 업데이트
+    // 페이지 번호 갱신
     function updatePageIndicator() {
       const current = pageFlip.getCurrentPageIndex() + 1;
       const total = pageFlip.getPageCount();
@@ -123,7 +157,7 @@
     pageFlip.on('init', updatePageIndicator);
     pageFlip.on('flip', updatePageIndicator);
 
-    // 버튼 동작
+    // 이전/다음 버튼 이벤트
     document.getElementById('prev-btn').addEventListener('click', () => pageFlip.flipPrev());
     document.getElementById('next-btn').addEventListener('click', () => pageFlip.flipNext());
     
@@ -136,7 +170,7 @@
       }
     });
 
-    // 키보드 좌우 방향키 넘김
+    // 키보드 방향키 이동 지원
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') pageFlip.flipPrev();
       if (e.key === 'ArrowRight') pageFlip.flipNext();
