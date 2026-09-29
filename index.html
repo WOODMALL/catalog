@@ -2,55 +2,35 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>우드몰 e-Catalog</title>
   <!-- Page-Flip 라이브러리 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
   <style>
-    :root {
-      --dpr: 2; /* 기본 레티나 배율 */
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
       background-color: #1a1a1a;
       height: 100vh;
-      height: 100dvh;
       width: 100vw;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: center; /* 뷰어를 화면 정중앙에 배치 */
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
       position: relative;
     }
 
-    /* [PC 기본] 적당한 67% 크기 유지 */
+    /* 플립북 래퍼: 전체 화면 높이의 67% 크기로 제한 */
     .catalog-wrapper {
-      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
       width: 100%;
-      height: 67vh;
+      height: 67vh; /* 67% 비율 적용 */
       max-width: 88vw;
-      margin-bottom: 30px;
-      touch-action: none;
-      overflow: hidden;
-    }
-
-    /* 초고해상도(Retina) 버퍼를 형성하는 가상 뷰포트 레이어 */
-    #zoom-viewport {
-      position: absolute;
-      width: calc(100% * var(--dpr));
-      height: calc(100% * var(--dpr));
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      transform-origin: center center;
-      will-change: transform;
+      margin-bottom: 30px; /* 하단 툴바와 겹치지 않도록 여백 확보 */
     }
 
     #book {
@@ -65,10 +45,10 @@
       transform: translateX(-50%);
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: rgba(30, 30, 30, 0.85);
+      gap: 12px;
+      background: rgba(30, 30, 30, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 8px 16px;
+      padding: 8px 18px;
       border-radius: 30px;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -80,8 +60,8 @@
       background: transparent;
       border: 1px solid rgba(255, 255, 255, 0.3);
       color: #fff;
-      padding: 6px 12px;
-      font-size: 0.82rem;
+      padding: 6px 14px;
+      font-size: 0.85rem;
       border-radius: 16px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -97,51 +77,36 @@
     .page-info {
       color: #eee;
       font-size: 0.85rem;
-      min-width: 60px;
+      min-width: 65px;
       text-align: center;
       font-weight: 500;
       letter-spacing: 0.5px;
     }
 
-    /* [모바일 전용 최적화] */
-    @media (max-width: 768px) {
+    /* 모바일 작은 화면 대응 */
+    @media (max-width: 600px) {
       .catalog-wrapper {
-        height: calc(100dvh - 75px);
-        height: calc(100vh - 75px);
-        width: 98vw;
-        max-width: 98vw;
-        margin-bottom: 55px;
+        height: 60vh;
+        max-width: 95vw;
+        margin-bottom: 40px;
       }
-
-      #book {
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
-      }
-
       .toolbar {
-        bottom: 10px;
-        padding: 6px 12px;
-        gap: 6px;
+        bottom: 12px;
+        padding: 6px 14px;
+        gap: 8px;
       }
-
       .btn {
-        padding: 5px 8px;
+        padding: 5px 10px;
         font-size: 0.75rem;
-      }
-
-      .page-info {
-        font-size: 0.78rem;
-        min-width: 50px;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- 카탈로그 래퍼 -->
-  <div class="catalog-wrapper" id="wrapper">
-    <div id="zoom-viewport">
-      <div id="book"></div>
-    </div>
+  <!-- 67% 크기로 조절된 카탈로그 뷰어 -->
+  <div class="catalog-wrapper">
+    <div id="book"></div>
   </div>
 
   <!-- 화면 최하단 고정 조작 바 -->
@@ -149,19 +114,12 @@
     <button class="btn" id="prev-btn">이전</button>
     <span class="page-info" id="page-num">- / -</span>
     <button class="btn" id="next-btn">다음</button>
-    <button class="btn" id="reset-zoom-btn">100%</button>
     <button class="btn" id="fullscreen-btn">전체화면</button>
   </div>
 
   <script>
-    // ⚙️ [설정] 실제 전체 페이지 수
+    // ⚙️ [설정] 실제 업로드된 전체 페이지 수
     const totalPages = 16; 
-
-    // 디바이스 픽셀 비율(DPR) 계산: 캔버스 버퍼를 2배 이상 키워 선명도 확보
-    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1.8), 2.5);
-    document.documentElement.style.setProperty('--dpr', dpr);
-
-    const isMobile = window.innerWidth <= 768;
 
     // 이미지 경로 배열 생성
     const imageList = [];
@@ -171,32 +129,26 @@
     }
 
     const book = document.getElementById('book');
-    const zoomViewport = document.getElementById('zoom-viewport');
-    const wrapper = document.getElementById('wrapper');
     const pageNumDisplay = document.getElementById('page-num');
 
-    // 💡 [핵심] 모바일에서는 PageFlip의 자체 캔버스 터치 이벤트를 잠가 오작동 차단
-    if (isMobile) {
-      book.style.pointerEvents = 'none';
-    }
-
-    // PageFlip 인스턴스 초기화 (캔버스 해상도 대폭 상향)
+    // 기존 대비 약 67% 비율로 축소 조정한 PageFlip 설정
     const pageFlip = new St.PageFlip(book, {
-      width: 550,
-      height: 778,
+      width: 370,          // 기준 너비 (550 * 0.67)
+      height: 520,         // 기준 높이 (780 * 0.67)
       size: 'stretch',
-      minWidth: 280,
-      maxWidth: 1600,   // 고해상도 모니터 및 레티나 화면 대응
-      minHeight: 400,
-      maxHeight: 2260,
+      minWidth: 200,
+      maxWidth: 600,       // 단면 기준 최대 너비 (900 * 0.67)
+      minHeight: 280,
+      maxHeight: 800,      // 최대 높이 (1200 * 0.67)
       maxShadowOpacity: 0.5,
-      showCover: true,
-      mobileScrollSupport: false,
-      usePortrait: true
+      showCover: true,     // 첫/마지막 장 표지 단면 모드
+      mobileScrollSupport: false
     });
 
+    // 캔버스 방식으로 이미지 주입
     pageFlip.loadFromImages(imageList);
 
+    // 페이지 인디케이터 업데이트
     function updatePageIndicator() {
       const current = pageFlip.getCurrentPageIndex() + 1;
       const total = pageFlip.getPageCount();
@@ -206,16 +158,11 @@
     pageFlip.on('init', updatePageIndicator);
     pageFlip.on('flip', updatePageIndicator);
 
-    document.getElementById('prev-btn').addEventListener('click', () => {
-      resetZoom();
-      pageFlip.flipPrev();
-    });
+    // 이전/다음 버튼 이벤트
+    document.getElementById('prev-btn').addEventListener('click', () => pageFlip.flipPrev());
+    document.getElementById('next-btn').addEventListener('click', () => pageFlip.flipNext());
     
-    document.getElementById('next-btn').addEventListener('click', () => {
-      resetZoom();
-      pageFlip.flipNext();
-    });
-
+    // 전체화면 토글
     document.getElementById('fullscreen-btn').addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
@@ -224,152 +171,10 @@
       }
     });
 
+    // 키보드 좌우 방향키 탐색
     window.addEventListener('keydown', (e) => {
-      if (scale === 1) {
-        if (e.key === 'ArrowLeft') pageFlip.flipPrev();
-        if (e.key === 'ArrowRight') pageFlip.flipNext();
-      }
-    });
-
-    /* ========================================================
-     * [고해상도 렌더링 & 완벽 터치 분리 제스처 엔진]
-     * ======================================================== */
-    let scale = 1;
-    let posX = 0;
-    let posY = 0;
-    let startDistance = 0;
-    let startScale = 1;
-    let startTouchX = 0;
-    let startTouchY = 0;
-    let isDragging = false;
-    let isPinching = false;
-    let lastTapTime = 0;
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchStartTime = 0;
-    let ignoreSwipeUntil = 0;
-
-    function applyTransform(withTransition = false) {
-      zoomViewport.style.transition = withTransition ? 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
-      // DPR에 맞춰 화면에 꼭 맞게 축소 매핑
-      const effectiveScale = scale / dpr;
-      zoomViewport.style.transform = `translate(${posX}px, ${posY}px) scale(${effectiveScale})`;
-    }
-
-    function resetZoom() {
-      scale = 1;
-      posX = 0;
-      posY = 0;
-      applyTransform(true);
-    }
-
-    // 초기 배율 반영
-    applyTransform(false);
-
-    document.getElementById('reset-zoom-btn').addEventListener('click', resetZoom);
-
-    function getDistance(t1, t2) {
-      return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-    }
-
-    // 1. 터치 시작 (Touch Start)
-    wrapper.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        // 두 손가락 핀치 줌 시작
-        isPinching = true;
-        startDistance = getDistance(e.touches[0], e.touches[1]);
-        startScale = scale;
-      } 
-      else if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const now = Date.now();
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-        touchStartTime = now;
-
-        // 더블 탭 감지 (300ms 이내 2회 탭)
-        if (now - lastTapTime < 300) {
-          e.preventDefault();
-          if (scale > 1.2) {
-            resetZoom();
-          } else {
-            scale = 2.4;
-            posX = 0;
-            posY = 0;
-            applyTransform(true);
-          }
-          lastTapTime = 0;
-          return;
-        }
-        lastTapTime = now;
-
-        // 확대 상태일 때만 드래그(화면 이동) 활성화
-        if (scale > 1) {
-          isDragging = true;
-          startTouchX = touch.clientX - posX;
-          startTouchY = touch.clientY - posY;
-        }
-      }
-    }, { passive: false });
-
-    // 2. 터치 이동 (Touch Move)
-    wrapper.addEventListener('touchmove', (e) => {
-      // 핀치 줌 동작 중
-      if (e.touches.length === 2 && startDistance > 0) {
-        e.preventDefault();
-        const currentDistance = getDistance(e.touches[0], e.touches[1]);
-        const nextScale = startScale * (currentDistance / startDistance);
-        scale = Math.min(Math.max(nextScale, 0.95), 3.8);
-        applyTransform(false);
-      } 
-      // 확대 상태에서 자유 이동 (Pan)
-      else if (e.touches.length === 1 && isDragging && scale > 1) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const maxRangeX = (window.innerWidth * (scale - 1)) / 1.3;
-        const maxRangeY = (window.innerHeight * (scale - 1)) / 1.3;
-
-        posX = Math.min(Math.max(touch.clientX - startTouchX, -maxRangeX), maxRangeX);
-        posY = Math.min(Math.max(touch.clientY - startTouchY, -maxRangeY), maxRangeY);
-        applyTransform(false);
-      }
-    }, { passive: false });
-
-    // 3. 터치 종료 (Touch End)
-    wrapper.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        startDistance = 0;
-        ignoreSwipeUntil = Date.now() + 350; // 핀치 후 손가락을 뗄 때 오작동 넘김 방지
-      }
-
-      // 손가락이 완전히 떨어졌을 때
-      if (e.touches.length === 0) {
-        isDragging = false;
-
-        // 1배율 상태일 때만 고의적인 좌우 스와이프를 페이지 넘김으로 인정
-        if (scale === 1 && !isPinching && Date.now() > ignoreSwipeUntil) {
-          const diffX = e.changedTouches[0].clientX - touchStartX;
-          const diffY = e.changedTouches[0].clientY - touchStartY;
-          const timeElapsed = Date.now() - touchStartTime;
-
-          // 가로 이동 50px 이상 & 세로 이동보다 가로 이동이 클 때만 넘김
-          if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && timeElapsed < 500) {
-            if (diffX < 0) {
-              pageFlip.flipNext(); // 왼쪽으로 밀기: 다음 페이지
-            } else {
-              pageFlip.flipPrev(); // 오른쪽으로 밀기: 이전 페이지
-            }
-          }
-        }
-
-        isPinching = false;
-
-        // 과도하게 작아진 경우 1배율로 자동 원복
-        if (scale <= 1.05) {
-          resetZoom();
-        }
-      }
+      if (e.key === 'ArrowLeft') pageFlip.flipPrev();
+      if (e.key === 'ArrowRight') pageFlip.flipNext();
     });
   </script>
 </body>
