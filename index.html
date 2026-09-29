@@ -2,84 +2,146 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>우드몰 웹 카탈로그</title>
-  <!-- Flipbook 라이브러리 CDN -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>우드몰 e-Catalog</title>
+  <!-- Page-Flip 라이브러리 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      background: #2b2b2b;
+      background-color: #1a1a1a;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      font-family: sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      touch-action: pan-y;
     }
-    .flip-book {
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      display: none; /* 로딩 전 숨김 */
+    .catalog-container {
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      border-radius: 4px;
+      overflow: hidden;
     }
     .page {
       background-color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
     }
     .page img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
     }
-    .controls {
-      margin-top: 15px;
+    /* 하단 조작 바 */
+    .toolbar {
+      margin-top: 18px;
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
     }
-    button {
-      padding: 8px 16px;
-      background: #fff;
-      border: none;
-      border-radius: 4px;
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 14px;
       cursor: pointer;
-      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: #fff;
+      color: #111;
+    }
+    .page-info {
+      color: #eee;
+      font-size: 0.85rem;
+      min-width: 60px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <div id="book" class="flip-book">
-    <!-- 표지 및 내지 이미지 -->
-    <div class="page"><img src="https://ecimg.cafe24img.com/pg1512b25903205017/woodmallcokr/web/catalog/1P.jpg" alt="표지"></div>
-    <div class="page"><img src="https://ecimg.cafe24img.com/pg1512b25903205017/woodmallcokr/web/catalog/2P.jpg" alt="1페이지"></div>
-    <div class="page"><img src="https://ecimg.cafe24img.com/pg1512b25903205017/woodmallcokr/web/catalog/3P.jpg" alt="2페이지"></div>
-    <div class="page"><img src="https://picsum.photos/id/1019/600/800" alt="3페이지"></div>
-    <div class="page"><img src="https://picsum.photos/id/1020/600/800" alt="뒤표지"></div>
-  </div>
+  <!-- 플립북 컨테이너 -->
+  <div id="book" class="catalog-container"></div>
 
-  <div class="controls">
-    <button onclick="flipBook.flipPrev()">이전 페이지</button>
-    <button onclick="flipBook.flipNext()">다음 페이지</button>
+  <!-- 컨트롤 바 -->
+  <div class="toolbar">
+    <button class="btn" id="prev-btn">이전</button>
+    <span class="page-info" id="page-num">- / -</span>
+    <button class="btn" id="next-btn">다음</button>
+    <button class="btn" id="fullscreen-btn">전체화면</button>
   </div>
 
   <script>
-    let flipBook;
-    window.addEventListener('DOMContentLoaded', () => {
-      const bookElem = document.getElementById('book');
-      bookElem.style.display = 'block';
+    // ⚙️ [설정] 실제 업로드한 전체 페이지 수를 입력하세요.
+    const totalPages = 16; 
 
-      flipBook = new St.PageFlip(bookElem, {
-        width: 400,        // 기본 페이지 가로(px)
-        height: 550,       // 기본 페이지 세로(px)
-        size: "stretch",
-        minWidth: 315,
-        maxWidth: 1000,
-        minHeight: 420,
-        maxHeight: 1350,
-        maxShadowOpacity: 0.5,
-        showCover: true,
-        mobileScrollSupport: false
-      });
+    const book = document.getElementById('book');
+    const pageNumDisplay = document.getElementById('page-num');
 
-      flipBook.loadFromHTML(document.querySelectorAll('.page'));
+    // 1. 이미지 페이지 동적 로드
+    for (let i = 1; i <= totalPages; i++) {
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'page';
+      
+      // 파일명이 page-01.jpg, page-02.jpg 형태일 때 2자리 숫자로 매칭
+      const formattedNum = String(i).padStart(2, '0');
+      pageDiv.innerHTML = `<img src="pages/page-${formattedNum}.jpg" alt="Page ${i}" loading="lazy">`;
+      book.appendChild(pageDiv);
+    }
+
+    // 2. PageFlip 인스턴스 초기화
+    const pageFlip = new St.PageFlip(book, {
+      width: 480,          // 한 페이지 기본 가로 크기 (px)
+      height: 680,         // 한 페이지 기본 세로 크기 (px)
+      size: 'stretch',
+      minWidth: 320,
+      maxWidth: 1200,
+      minHeight: 450,
+      maxHeight: 1600,
+      maxShadowOpacity: 0.5,
+      showCover: true,     // 첫 장과 마지막 장을 표지(단면)로 인식
+      mobileScrollSupport: false
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    // 3. 페이지 전환 이벤트 및 번호 업데이트
+    function updatePageIndicator() {
+      const current = pageFlip.getCurrentPageIndex() + 1;
+      pageNumDisplay.textContent = `${current} / ${totalPages}`;
+    }
+
+    pageFlip.on('init', updatePageIndicator);
+    pageFlip.on('flip', updatePageIndicator);
+
+    // 4. 버튼 이벤트 연결
+    document.getElementById('prev-btn').addEventListener('click', () => pageFlip.flipPrev());
+    document.getElementById('next-btn').addEventListener('click', () => pageFlip.flipNext());
+    
+    // 전체화면 토글
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // 키보드 좌우 방향키 탐색 지원
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') pageFlip.flipPrev();
+      if (e.key === 'ArrowRight') pageFlip.flipNext();
     });
   </script>
 </body>
