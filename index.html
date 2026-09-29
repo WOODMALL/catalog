@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>우드몰 e-Catalog</title>
   <!-- Page-Flip 라이브러리 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
@@ -16,21 +16,31 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center; /* 뷰어를 화면 정중앙에 배치 */
+      justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
       position: relative;
     }
 
-    /* 플립북 래퍼: 전체 화면 높이의 67% 크기로 제한 */
+    /* 플립북 래퍼 */
     .catalog-wrapper {
       display: flex;
       justify-content: center;
       align-items: center;
       width: 100%;
-      height: 67vh; /* 67% 비율 적용 */
+      height: 67vh;
       max-width: 88vw;
-      margin-bottom: 30px; /* 하단 툴바와 겹치지 않도록 여백 확보 */
+      margin-bottom: 30px;
+      touch-action: none; /* 브라우저 기본 제스처 충돌 방지 */
+    }
+
+    /* 핀치 줌 & 이동을 담당하는 독립 뷰포트 레이어 */
+    #zoom-viewport {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transform-origin: center center;
+      will-change: transform;
     }
 
     #book {
@@ -45,10 +55,10 @@
       transform: translateX(-50%);
       display: flex;
       align-items: center;
-      gap: 12px;
-      background: rgba(30, 30, 30, 0.75);
+      gap: 10px;
+      background: rgba(30, 30, 30, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 30px;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -60,8 +70,8 @@
       background: transparent;
       border: 1px solid rgba(255, 255, 255, 0.3);
       color: #fff;
-      padding: 6px 14px;
-      font-size: 0.85rem;
+      padding: 6px 12px;
+      font-size: 0.82rem;
       border-radius: 16px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -77,7 +87,7 @@
     .page-info {
       color: #eee;
       font-size: 0.85rem;
-      min-width: 65px;
+      min-width: 60px;
       text-align: center;
       font-weight: 500;
       letter-spacing: 0.5px;
@@ -86,27 +96,33 @@
     /* 모바일 작은 화면 대응 */
     @media (max-width: 600px) {
       .catalog-wrapper {
-        height: 60vh;
+        height: 62vh;
         max-width: 95vw;
         margin-bottom: 40px;
       }
       .toolbar {
         bottom: 12px;
-        padding: 6px 14px;
-        gap: 8px;
+        padding: 6px 12px;
+        gap: 6px;
       }
       .btn {
-        padding: 5px 10px;
-        font-size: 0.75rem;
+        padding: 5px 8px;
+        font-size: 0.72rem;
+      }
+      .page-info {
+        font-size: 0.78rem;
+        min-width: 50px;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- 67% 크기로 조절된 카탈로그 뷰어 -->
-  <div class="catalog-wrapper">
-    <div id="book"></div>
+  <!-- 핀치 줌 전용 뷰포트 레이어가 추가된 카탈로그 래퍼 -->
+  <div class="catalog-wrapper" id="wrapper">
+    <div id="zoom-viewport">
+      <div id="book"></div>
+    </div>
   </div>
 
   <!-- 화면 최하단 고정 조작 바 -->
@@ -114,11 +130,12 @@
     <button class="btn" id="prev-btn">이전</button>
     <span class="page-info" id="page-num">- / -</span>
     <button class="btn" id="next-btn">다음</button>
+    <button class="btn" id="reset-zoom-btn">100%</button>
     <button class="btn" id="fullscreen-btn">전체화면</button>
   </div>
 
   <script>
-    // ⚙️ [설정] 실제 업로드된 전체 페이지 수
+    // ⚙️ [설정] 실제 전체 페이지 수
     const totalPages = 16; 
 
     // 이미지 경로 배열 생성
@@ -129,26 +146,26 @@
     }
 
     const book = document.getElementById('book');
+    const zoomViewport = document.getElementById('zoom-viewport');
+    const wrapper = document.getElementById('wrapper');
     const pageNumDisplay = document.getElementById('page-num');
 
-    // 기존 대비 약 67% 비율로 축소 조정한 PageFlip 설정
+    // PageFlip 인스턴스 초기화
     const pageFlip = new St.PageFlip(book, {
-      width: 370,          // 기준 너비 (550 * 0.67)
-      height: 520,         // 기준 높이 (780 * 0.67)
+      width: 370,
+      height: 520,
       size: 'stretch',
       minWidth: 200,
-      maxWidth: 600,       // 단면 기준 최대 너비 (900 * 0.67)
+      maxWidth: 600,
       minHeight: 280,
-      maxHeight: 800,      // 최대 높이 (1200 * 0.67)
+      maxHeight: 800,
       maxShadowOpacity: 0.5,
-      showCover: true,     // 첫/마지막 장 표지 단면 모드
+      showCover: true,
       mobileScrollSupport: false
     });
 
-    // 캔버스 방식으로 이미지 주입
     pageFlip.loadFromImages(imageList);
 
-    // 페이지 인디케이터 업데이트
     function updatePageIndicator() {
       const current = pageFlip.getCurrentPageIndex() + 1;
       const total = pageFlip.getPageCount();
@@ -158,11 +175,16 @@
     pageFlip.on('init', updatePageIndicator);
     pageFlip.on('flip', updatePageIndicator);
 
-    // 이전/다음 버튼 이벤트
-    document.getElementById('prev-btn').addEventListener('click', () => pageFlip.flipPrev());
-    document.getElementById('next-btn').addEventListener('click', () => pageFlip.flipNext());
+    document.getElementById('prev-btn').addEventListener('click', () => {
+      resetZoom();
+      pageFlip.flipPrev();
+    });
     
-    // 전체화면 토글
+    document.getElementById('next-btn').addEventListener('click', () => {
+      resetZoom();
+      pageFlip.flipNext();
+    });
+
     document.getElementById('fullscreen-btn').addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
@@ -171,10 +193,124 @@
       }
     });
 
-    // 키보드 좌우 방향키 탐색
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') pageFlip.flipPrev();
-      if (e.key === 'ArrowRight') pageFlip.flipNext();
+      if (scale === 1) {
+        if (e.key === 'ArrowLeft') pageFlip.flipPrev();
+        if (e.key === 'ArrowRight') pageFlip.flipNext();
+      }
+    });
+
+    /* ========================================================
+     * 모바일 핀치 줌(Pinch Zoom), 드래그(Pan), 더블탭 제스처 엔진
+     * ======================================================== */
+    let scale = 1;
+    let posX = 0;
+    let posY = 0;
+    let startDistance = 0;
+    let startScale = 1;
+    let startTouchX = 0;
+    let startTouchY = 0;
+    let isDragging = false;
+    let lastTapTime = 0;
+
+    function applyTransform(withTransition = false) {
+      zoomViewport.style.transition = withTransition ? 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+      zoomViewport.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    }
+
+    function resetZoom() {
+      scale = 1;
+      posX = 0;
+      posY = 0;
+      applyTransform(true);
+    }
+
+    document.getElementById('reset-zoom-btn').addEventListener('click', resetZoom);
+
+    // 두 손가락 사이의 유클리드 거리 계산
+    function getDistance(t1, t2) {
+      return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    }
+
+    wrapper.addEventListener('touchstart', (e) => {
+      // 1. 두 손가락 핀치 줌 시작
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        startDistance = getDistance(e.touches[0], e.touches[1]);
+        startScale = scale;
+      } 
+      // 2. 한 손가락 터치 (더블 탭 감지 및 확대 상태 드래그)
+      else if (e.touches.length === 1) {
+        const now = Date.now();
+        const touch = e.touches[0];
+
+        // 더블 탭 동작 (300ms 이내 연속 터치)
+        if (now - lastTapTime < 300) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (scale > 1.2) {
+            resetZoom();
+          } else {
+            scale = 2.2;
+            posX = 0;
+            posY = 0;
+            applyTransform(true);
+          }
+          lastTapTime = 0;
+          return;
+        }
+        lastTapTime = now;
+
+        // 확대되어 있을 때는 책 넘김을 막고 자유 이동(Pan) 활성화
+        if (scale > 1) {
+          e.stopPropagation();
+          isDragging = true;
+          startTouchX = touch.clientX - posX;
+          startTouchY = touch.clientY - posY;
+        }
+      }
+    }, { passive: false });
+
+    wrapper.addEventListener('touchmove', (e) => {
+      // 핀치 줌 동작 중
+      if (e.touches.length === 2 && startDistance > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        const nextScale = startScale * (currentDistance / startDistance);
+        
+        // 확대 비율을 1배 ~ 최대 3.5배로 제한
+        scale = Math.min(Math.max(nextScale, 0.95), 3.5);
+        applyTransform(false);
+      } 
+      // 확대 상태에서 한 손가락으로 화면 이동(Pan) 중
+      else if (e.touches.length === 1 && isDragging && scale > 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        const touch = e.touches[0];
+        
+        // 이동 범위 계산 및 한계값 제한
+        const maxRangeX = (window.innerWidth * (scale - 1)) / 1.5;
+        const maxRangeY = (window.innerHeight * (scale - 1)) / 1.5;
+
+        posX = Math.min(Math.max(touch.clientX - startTouchX, -maxRangeX), maxRangeX);
+        posY = Math.min(Math.max(touch.clientY - startTouchY, -maxRangeY), maxRangeY);
+        applyTransform(false);
+      }
+    }, { passive: false });
+
+    wrapper.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        startDistance = 0;
+      }
+      if (e.touches.length === 0) {
+        isDragging = false;
+        // 1배율 이하로 축소된 경우 원위치로 복귀
+        if (scale <= 1.05) {
+          resetZoom();
+        }
+      }
     });
   </script>
 </body>
